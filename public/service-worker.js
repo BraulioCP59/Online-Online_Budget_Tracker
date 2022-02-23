@@ -1,38 +1,58 @@
-
+const dbName = 'transactionStore';
 const cacheName = 'v1';
-const cacheAssets = [
-    'index.html',
-    'index.js',
-    'styles.css',
-    '/icons/icon-192x192.png',
-    '/icons/icon-512x512.png'
-];
+
 
 
 //install handler
 self.addEventListener('install', (event) => {
     console.log('service worker has been installed');
-
-    //open cache and store assets
-    event.waitUntil(
-        caches
-        .open(cacheName)
-        .then(cache => {
-            console.log('Service Worker: Caching Files\n\n', cache);
-            cache.addAll(cacheAssets);
-        })
-        .then(() => self.skipWaiting())
-    )
 })
 
 //activation handler
-self.addEventListener('activate', async(event) => {
+self.addEventListener('activate', (event) => {
     console.log('service worker has been activated');
+
+    //remove unwanted caches
+    event.waitUntil(
+        caches.keys()
+        .then(cacheNames =>{
+            return Promise.all(
+                cacheNames.map(cache => {
+                    if(cache !== cacheName)
+                    {
+                        console.log('Service Worker: Clearing Old Cache');
+                        return caches.delete(cache);
+                    }
+                })
+            )
+        })
+    )
 })
 
 //fetch handler
-self.addEventListener('fetch', async(event) => {
-    console.log('service worker has received a fetch request!');
+self.addEventListener('fetch', (event) => {
+    console.log('Service Worker: Fetching');
+
+    event.respondWith(
+        fetch(event.request)
+        .then((response) => {
+            //make a copy of the response
+            const responseCopy = response.clone();
+
+            //open the cache and store the copy
+            caches
+            .open(cacheName)
+            .then(cache => {
+                cache.put(event.request, responseCopy);
+            });
+            return response;
+        })
+        .catch((err) => {
+            console.log('Service Worker: Recovering Assets from cache');
+            caches.match(event.request)
+            .then(response => response);               
+        })
+    )
 })
 
 
@@ -46,66 +66,65 @@ self.addEventListener('fetch', async(event) => {
 
 
 
+// const dbName = "the_name";
+
+// var request = indexedDB.open(dbName, 2);
+
+// request.onerror = event => {
+//   // Handle errors.
+// };
+// request.onupgradeneeded = event => {
+//   var db = event.target.result;
+
+//   // Create an objectStore to hold information about our customers. We're
+//   // going to use "ssn" as our key path because it's guaranteed to be
+//   // unique - or at least that's what I was told during the kickoff meeting.
+//   var objectStore = db.createObjectStore("customers", { keyPath: "ssn" });
+
+//   // Create an index to search customers by name. We may have duplicates
+//   // so we can't use a unique index.
+//   objectStore.createIndex("name", "name", { unique: false });
+
+//   // Create an index to search customers by email. We want to ensure that
+//   // no two customers have the same email, so use a unique index.
+//   objectStore.createIndex("email", "email", { unique: true });
+
+//   // Use transaction oncomplete to make sure the objectStore creation is
+//   // finished before adding data into it.
+//   objectStore.transaction.oncomplete = event => {
+//     // Store values in the newly created objectStore.
+//     var customerObjectStore = db.transaction("customers", "readwrite").objectStore("customers");
+//     customerData.forEach(function(customer) {
+//       customerObjectStore.add(customer);
+//     });
+//   };
+// };
 
 
+//removing from the database
+// var request = db.transaction(["customers"], "readwrite")
+//                 .objectStore("customers")
+//                 .delete("444-44-4444");
+// request.onsuccess = event => {
+//   // It's gone!
+// };
 
 
+//Getting Data from the db
+
+// var transaction = db.transaction(["customers"]);
+// var objectStore = transaction.objectStore("customers");
+// var request = objectStore.get("444-44-4444");
+// request.onerror = event => {
+//   // Handle errors!
+// };
+// request.onsuccess = event => {
+//   // Do something with the request.result!
+//   console.log("Name for SSN 444-44-4444 is " + request.result.name);
+// };
 
 
-
-
-
-
-
-
-
-
-
-// self.addEventListener('install', (event) => {
-//     event.waitUntil(
-//       caches
-//         .open(PRECACHE)
-//         .then((cache) => cache.addAll(FILES_TO_CACHE))
-//         .then(self.skipWaiting())
-//     );
-//   });
-  
-//   // The activate handler takes care of cleaning up old caches.
-//   self.addEventListener('activate', (event) => {
-//     const currentCaches = [PRECACHE, RUNTIME];
-//     event.waitUntil(
-//       caches
-//         .keys()
-//         .then((cacheNames) => {
-//           return cacheNames.filter((cacheName) => !currentCaches.includes(cacheName));
-//         })
-//         .then((cachesToDelete) => {
-//           return Promise.all(
-//             cachesToDelete.map((cacheToDelete) => {
-//               return caches.delete(cacheToDelete);
-//             })
-//           );
-//         })
-//         .then(() => self.clients.claim())
-//     );
-//   });
-  
-//   self.addEventListener('fetch', (event) => {
-//     if (event.request.url.startsWith(self.location.origin)) {
-//       event.respondWith(
-//         caches.match(event.request).then((cachedResponse) => {
-//           if (cachedResponse) {
-//             return cachedResponse;
-//           }
-  
-//           return caches.open(RUNTIME).then((cache) => {
-//             return fetch(event.request).then((response) => {
-//               return cache.put(event.request, response.clone()).then(() => {
-//                 return response;
-//               });
-//             });
-//           });
-//         })
-//       );
-//     }
-//   });
+//get all data from the db
+// objectStore.getAll().onsuccess = event => {
+//     console.log("Got all customers: " + event.target.result);
+//   };
